@@ -24,13 +24,24 @@ jobs:
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-qt6-base
             mingw-w64-x86_64-qt6-tools
-            mingw-w64-x86_64-mpv
+
+      - name: Download prebuilt libmpv (dev)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest'
+          $asset = $rel.assets | Where-Object { $_.name -match '^mpv-dev-x86_64-\d{8}-' } | Select-Object -First 1
+          if (-not $asset) { throw "mpv-dev x86_64 asset not found in release $($rel.tag_name)" }
+          Write-Host "Using $($asset.name)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile mpv-dev.7z
+          & 'C:\Program Files\7-Zip\7z.exe' x -y -o"mpv-dev" mpv-dev.7z | Out-Null
+          Get-ChildItem mpv-dev | Format-Table -AutoSize
 
       - name: Configure & build
         shell: msys2 {0}
         run: |
           export PATH=/mingw64/bin:$PATH
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DMPV_ROOT="$PWD/mpv-dev"
           cmake --build build
 
       - name: Deploy (windeployqt + mpv/ffmpeg DLLs)
@@ -41,16 +52,18 @@ jobs:
           cp build/raceview.exe dist/
           cp build/*.qm dist/translations/ 2>/dev/null || true
 
+          # mpv-dev archive is flat; ffmpeg is statically baked into libmpv-2.dll.
+          cp mpv-dev/libmpv-2.dll dist/
+
           WDQ="$(command -v windeployqt || true)"
           if [ -n "$WDQ" ]; then
             "$WDQ" --release --compiler-runtime --no-translations dist/raceview.exe
           fi
 
-          # Copy every MinGW runtime DLL the exe actually needs (Qt, mpv,
-          # ffmpeg, freetype, harfbuzz, ...). cp -n keeps windeployqt's copies.
-          ldd build/raceview.exe dist/*.dll 2>/dev/null \
-            | grep -oE '/mingw64/bin/[^ ]+\.dll' | sort -u \
-            | while read -r dll; do cp -n "$dll" dist/; done
+          # MinGW runtime DLLs needed by the exe AND by libmpv-2.dll.
+          for b in build/raceview.exe dist/libmpv-2.dll; do
+            ldd "$b" 2>/dev/null | grep -oE '/mingw64/bin/[^ ]+\.dll'
+          done | sort -u | while read -r dll; do cp -n "$dll" dist/; done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

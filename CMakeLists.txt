@@ -42,13 +42,22 @@ add_executable(raceview
 target_link_libraries(raceview PRIVATE Qt6::Widgets Qt6::OpenGLWidgets mpv)
 target_compile_definitions(raceview PRIVATE RACEVIEW_VERSION="${PROJECT_VERSION}")
 
+# Optional prebuilt libmpv dev root. Used on Windows CI, where MSYS2 no
+# longer ships an mpv package. The shinchiro mpv-dev archive is flat:
+#   <root>/include/mpv/*.h, <root>/libmpv.dll.a, <root>/libmpv-2.dll
+set(MPV_ROOT "" CACHE PATH "Prebuilt libmpv dev root (include/ + libmpv.dll.a)")
+if(MPV_ROOT)
+    target_include_directories(raceview PRIVATE "${MPV_ROOT}/include")
+    target_link_directories(raceview PRIVATE "${MPV_ROOT}")
+endif()
+
 if(RACEVIEW_MPRIS)
     target_compile_definitions(raceview PRIVATE RACEVIEW_MPRIS)
     target_link_libraries(raceview PRIVATE Qt6::DBus)
 endif()
 
-# Bundled libmpv lives in .deps only on Linux; on Windows (MSYS2) mpv comes
-# from the toolchain sysroot and needs no extra include/link paths.
+# Bundled libmpv lives in .deps only on Linux. On Windows the prebuilt mpv
+# dev package is supplied via -DMPV_ROOT (see the MPV_ROOT block above).
 if(UNIX AND NOT APPLE)
     target_include_directories(raceview PRIVATE ${DEPS_DIR}/include)
     target_link_directories(raceview PRIVATE ${DEPS_DIR}/lib64)
