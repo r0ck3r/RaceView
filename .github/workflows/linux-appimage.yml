@@ -1,0 +1,85 @@
+name: Linux (AppImage)
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '[0-9]*'
+  workflow_dispatch:
+
+env:
+  ARCH: x86_64
+
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config patchelf \
+            qt6-base-dev qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools \
+            libmpv-dev \
+            libgl1-mesa-dev libopengl-dev
+
+      - name: Configure & build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+
+      - name: Stage AppDir
+        run: |
+          DESTDIR="$PWD/AppDir" cmake --install build --prefix /usr
+          cp AppDir/usr/share/applications/raceview.desktop AppDir/raceview.desktop
+          cp AppDir/usr/share/icons/hicolor/scalable/apps/raceview.svg AppDir/raceview.svg
+
+      - name: Fetch linuxdeploy + Qt plugin
+        run: |
+          set -e
+          base=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous
+          qbase=https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous
+          curl -sL --fail -o linuxdeploy.AppImage "$base/linuxdeploy-${ARCH}.AppImage"
+          curl -sL --fail -o ldp-qt.AppImage "$qbase/linuxdeploy-plugin-qt-${ARCH}.AppImage"
+          chmod +x linuxdeploy.AppImage ldp-qt.AppImage
+          ./linuxdeploy.AppImage --appimage-extract
+          mv squashfs-root linuxdeploy
+          ./ldp-qt.AppImage --appimage-extract
+          cp -n squashfs-root/usr/bin/linuxdeploy-plugin-qt linuxdeploy/usr/bin/
+          rm -rf squashfs-root
+          # Use the runner's recent strip/patchelf (linuxdeploy bundles old ones
+          # that mishandle RELR relocations and corrupt distro libs).
+          ln -sf /usr/bin/patchelf linuxdeploy/usr/bin/patchelf
+          ln -sf /usr/bin/strip    linuxdeploy/usr/bin/strip
+
+      - name: Build AppImage
+        run: |
+          export PATH="$PWD/linuxdeploy/usr/bin:$PATH"
+          export QMAKE=/usr/bin/qmake6
+          linuxdeploy \
+            --appdir AppDir --plugin qt --output appimage \
+            --desktop-file AppDir/raceview.desktop --icon-file AppDir/raceview.svg
+
+      - name: Smoke test (headless)
+        run: |
+          sudo apt-get install -y --no-install-recommends xvfb
+          Xvfb :99 -screen 0 800x600x24 &
+          export DISPLAY=:99 RACEVIEW_HEADLESS=1
+          appimage="$(ls -1 RaceView-*.AppImage | head -1)"
+          set +e
+          timeout 20 "./$appimage" --appimage-extract-and-run
+          code=$?
+          set -e
+          # 124 = still running when the timeout fired (a GUI app: that's success)
+          if [ "$code" -ne 124 ] && [ "$code" -ne 0 ]; then
+            echo "AppImage smoke test failed (exit $code)"; exit 1
+          fi
+          echo "AppImage smoke test OK (exit $code)"
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: RaceView-linux-x86_64-AppImage
+          path: RaceView-*.AppImage
