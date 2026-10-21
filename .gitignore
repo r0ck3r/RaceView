@@ -4,6 +4,12 @@ cmake-build-*/
 out/
 install/
 
+# AppImage output
+*.AppImage
+
+# AppImage packaging kit (local tooling + generated artifacts)
+packaging/
+
 # CMake in-source artifacts
 CMakeCache.txt
 CMakeFiles/
