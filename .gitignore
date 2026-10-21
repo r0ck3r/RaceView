@@ -1,0 +1,65 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+install/
+
+# CMake in-source artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.cmake.in.stamp
+
+# Local downloaded dependencies
+.deps/
+
+# Qt / CMake generated
+*.qm
+*.mo
+.qmake.stash
+*.pro.user
+moc_*.cpp
+qrc_*.cpp
+ui_*.cpp
+*.autogen/
+*_autogen/
+
+# Compiled objects / libs
+*.o
+*.obj
+*.so
+*.so.*
+*.dylib
+*.dll
+*.a
+*.exe
+
+# Test media (large / copyrighted)
+test/*.mkv
+test/*.mp4
+test/*.avi
+test/*.ts
+test/*.mpg
+test/*.mov
+test/*.m2ts
+!test/.gitkeep
+
+# Debug dumps / logs
+*.log
+frame*.png
+/tmp/
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*~
+.cache/
+clangd/
+compile_commands.json
+
+# OS
+.DS_Store
+Thumbs.db

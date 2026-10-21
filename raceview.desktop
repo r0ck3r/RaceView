@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=RaceView
+GenericName=Media Player
+Comment=Multi-track synchronized video player
+Exec=raceview %U
+TryExec=raceview
+Icon=raceview
+Terminal=false
+Categories=AudioVideo;Player;Video;
+MimeType=video/x-matroska;video/mp4;video/*;
+X-KDE-DBUS-Restricted-Interfaces=org.mpris.MediaPlayer2
