@@ -6,7 +6,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets OpenGLWidgets DBus LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS Widgets OpenGLWidgets LinguistTools)
+
+# MPRIS2 (D-Bus) is a Linux-only desktop integration.
+set(RACEVIEW_MPRIS OFF)
+if(UNIX AND NOT APPLE)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+    set(RACEVIEW_MPRIS ON)
+endif()
 
 set(DEPS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.deps/usr/usr)
 
@@ -32,21 +39,35 @@ add_executable(raceview
     resources.qrc
 )
 
-target_include_directories(raceview PRIVATE ${DEPS_DIR}/include)
-target_link_directories(raceview PRIVATE ${DEPS_DIR}/lib64)
-target_link_libraries(raceview PRIVATE Qt6::Widgets Qt6::OpenGLWidgets Qt6::DBus mpv)
+target_link_libraries(raceview PRIVATE Qt6::Widgets Qt6::OpenGLWidgets mpv)
 target_compile_definitions(raceview PRIVATE RACEVIEW_VERSION="${PROJECT_VERSION}")
 
-set_target_properties(raceview PROPERTIES
-    BUILD_RPATH ${DEPS_DIR}/lib64
-    INSTALL_RPATH "$ORIGIN/../.deps/usr/usr/lib64"
-)
+if(RACEVIEW_MPRIS)
+    target_compile_definitions(raceview PRIVATE RACEVIEW_MPRIS)
+    target_link_libraries(raceview PRIVATE Qt6::DBus)
+endif()
+
+# Bundled libmpv lives in .deps only on Linux; on Windows (MSYS2) mpv comes
+# from the toolchain sysroot and needs no extra include/link paths.
+if(UNIX AND NOT APPLE)
+    target_include_directories(raceview PRIVATE ${DEPS_DIR}/include)
+    target_link_directories(raceview PRIVATE ${DEPS_DIR}/lib64)
+    set_target_properties(raceview PROPERTIES
+        BUILD_RPATH ${DEPS_DIR}/lib64
+        INSTALL_RPATH "$ORIGIN/../.deps/usr/usr/lib64"
+    )
+endif()
+
+# No console window on Windows.
+set_target_properties(raceview PROPERTIES WIN32_EXECUTABLE TRUE)
 
 set(TS_FILES raceview_ru.ts raceview_de.ts raceview_es.ts raceview_fr.ts)
 qt_add_translation(QM_FILES ${TS_FILES})
 add_custom_target(translations ALL DEPENDS ${QM_FILES})
 
 install(TARGETS raceview RUNTIME DESTINATION bin)
-install(FILES raceview.desktop DESTINATION share/applications)
-install(FILES icons/raceview.svg DESTINATION share/icons/hicolor/scalable/apps)
+if(UNIX AND NOT APPLE)
+    install(FILES raceview.desktop DESTINATION share/applications)
+    install(FILES icons/raceview.svg DESTINATION share/icons/hicolor/scalable/apps)
+endif()
 install(FILES ${QM_FILES} DESTINATION share/raceview/translations)

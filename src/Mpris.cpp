@@ -1,6 +1,8 @@
 #include "Mpris.h"
-#include "MprisAdaptors.h"
 
+#ifdef RACEVIEW_MPRIS
+
+#include "MprisAdaptors.h"
 #include <QDBusConnection>
 
 Mpris::Mpris(SyncController *sync, QObject *parent)
@@ -19,3 +21,12 @@ bool Mpris::registerService() {
     return bus.registerObject(QStringLiteral("/org/mpris/MediaPlayer2"), this,
                               QDBusConnection::ExportAdaptors);
 }
+
+#else // MPRIS недоступен (Windows/macOS): no-op заглушка
+
+Mpris::Mpris(SyncController *sync, QObject *parent)
+    : QObject(parent), m_sync(sync) {}
+
+bool Mpris::registerService() { return false; }
+
+#endif

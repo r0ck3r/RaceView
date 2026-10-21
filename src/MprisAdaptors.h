@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef RACEVIEW_MPRIS
+
 #include <QDBusAbstractAdaptor>
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -185,3 +187,5 @@ public slots:
 private:
     Mpris *m_mpris;
 };
+
+#endif // RACEVIEW_MPRIS
