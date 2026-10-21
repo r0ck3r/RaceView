@@ -6,10 +6,44 @@
 #include <QDir>
 #include <QCoreApplication>
 #include <clocale>
+#include <cstdlib>
+#include <langinfo.h>
 
 #include "SyncController.h"
 #include "ControlPanel.h"
 #include "Mpris.h"
+
+// Qt6 decodes file-system names with the C-locale codec. If the host locale is
+// not UTF-8 (common when an AppImage is launched outside a UTF-8 terminal),
+// non-ASCII names turn into mojibake. Force a UTF-8 codeset while keeping the
+// user's language, so QLocale::system() still detects the right UI language.
+static void ensureUtf8Locale() {
+    setlocale(LC_ALL, "");
+    const char *cs = nl_langinfo(CODESET);
+    if (cs && qstricmp(cs, "UTF-8") == 0)
+        return;
+
+    QByteArray base = qgetenv("LC_ALL");
+    if (base.isEmpty())
+        base = qgetenv("LANG");
+    if (base.isEmpty())
+        base = QByteArray("C");
+    const int at = base.indexOf('@');
+    if (at >= 0)
+        base = base.left(at);
+    const int dot = base.indexOf('.');
+    if (dot >= 0)
+        base = base.left(dot);
+
+    QByteArray target = base + ".UTF-8";
+    if (!setlocale(LC_ALL, target.constData())) {
+        target = "C.UTF-8";
+        if (!setlocale(LC_ALL, target.constData()))
+            target = "C";
+    }
+    setenv("LC_ALL", target.constData(), 1);
+    setlocale(LC_ALL, "");
+}
 
 static QString resolveLanguage() {
     QSettings st(QStringLiteral("raceview"), QStringLiteral("raceview"));
@@ -22,6 +56,7 @@ static QString resolveLanguage() {
 }
 
 int main(int argc, char **argv) {
+    ensureUtf8Locale();
     QApplication app(argc, argv);
     app.setOrganizationName("raceview");
     app.setApplicationName("RaceView");
