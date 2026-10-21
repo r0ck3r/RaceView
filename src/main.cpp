@@ -7,7 +7,9 @@
 #include <QCoreApplication>
 #include <clocale>
 #include <cstdlib>
+#if !defined(Q_OS_WIN)
 #include <langinfo.h>
+#endif
 
 #include "SyncController.h"
 #include "ControlPanel.h"
@@ -18,6 +20,9 @@
 // non-ASCII names turn into mojibake. Force a UTF-8 codeset while keeping the
 // user's language, so QLocale::system() still detects the right UI language.
 static void ensureUtf8Locale() {
+#if defined(Q_OS_WIN)
+    // Windows uses UTF-16 file APIs, so the C-locale codec issue does not apply.
+#else
     setlocale(LC_ALL, "");
     const char *cs = nl_langinfo(CODESET);
     if (cs && qstricmp(cs, "UTF-8") == 0)
@@ -43,6 +48,7 @@ static void ensureUtf8Locale() {
     }
     setenv("LC_ALL", target.constData(), 1);
     setlocale(LC_ALL, "");
+#endif
 }
 
 static QString resolveLanguage() {
