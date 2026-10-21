@@ -61,9 +61,12 @@ jobs:
           fi
 
           # MinGW runtime DLLs needed by the exe AND by libmpv-2.dll.
-          for b in build/raceview.exe dist/libmpv-2.dll; do
-            ldd "$b" 2>/dev/null | grep -oE '/mingw64/bin/[^ ]+\.dll'
-          done | sort -u | while read -r dll; do cp -n "$dll" dist/; done
+          # (grep exits 1 when a binary has no /mingw64 deps -> guard the pipe.)
+          {
+            for b in build/raceview.exe dist/libmpv-2.dll; do
+              ldd "$b" 2>/dev/null | grep -oE '/mingw64/bin/[^ ]+\.dll'
+            done
+          } | sort -u | while read -r dll; do cp -n "$dll" dist/; done || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
