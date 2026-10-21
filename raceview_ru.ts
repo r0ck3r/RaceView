@@ -123,8 +123,9 @@
     </message>
     <message>
         <location filename="src/ControlPanel.cpp" line="346"/>
-        <source>&lt;h3&gt;RaceView&lt;/h3&gt;&lt;p&gt;Multi-track synchronized video player built with Qt6 + libmpv.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Author:&lt;/b&gt; r0ck3r&lt;/p&gt;&lt;p&gt;&lt;b&gt;Site:&lt;/b&gt; &lt;a href=&quot;https://github.com/r0ck3r&quot;&gt;https://github.com/r0ck3r&lt;/a&gt;&lt;/p&gt;</source>
-        <translation>&lt;h3&gt;RaceView&lt;/h3&gt;&lt;p&gt;Многодорожечный синхронный видеоплеер на Qt6 + libmpv.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Автор:&lt;/b&gt; r0ck3r&lt;/p&gt;&lt;p&gt;&lt;b&gt;Сайт:&lt;/b&gt; &lt;a href=&quot;https://github.com/r0ck3r&quot;&gt;https://github.com/r0ck3r&lt;/a&gt;&lt;/p&gt;</translation>
+        <source>&lt;h3&gt;RaceView&lt;/h3&gt;&lt;p&gt;Multi-track synchronized video player built with Qt6 + libmpv.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Author:&lt;/b&gt; r0ck3r&lt;/p&gt;&lt;p&gt;&lt;b&gt;Site:&lt;/b&gt; &lt;a href=&quot;https://github.com/r0ck3r/RaceView&quot;&gt;https://github.com/r0ck3r/RaceView&lt;/a&gt;&lt;/p&gt;</source>
+        <oldsource>&lt;h3&gt;RaceView&lt;/h3&gt;&lt;p&gt;Multi-track synchronized video player built with Qt6 + libmpv.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Author:&lt;/b&gt; r0ck3r&lt;/p&gt;&lt;p&gt;&lt;b&gt;Site:&lt;/b&gt; &lt;a href=&quot;https://github.com/r0ck3r&quot;&gt;https://github.com/r0ck3r&lt;/a&gt;&lt;/p&gt;</oldsource>
+        <translation>&lt;h3&gt;RaceView&lt;/h3&gt;&lt;p&gt;Многодорожечный синхронный видеоплеер на Qt6 + libmpv.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Автор:&lt;/b&gt; r0ck3r&lt;/p&gt;&lt;p&gt;&lt;b&gt;Сайт:&lt;/b&gt; &lt;a href=&quot;https://github.com/r0ck3r/RaceView&quot;&gt;https://github.com/r0ck3r/RaceView&lt;/a&gt;&lt;/p&gt;</translation>
     </message>
     <message>
         <location filename="src/ControlPanel.cpp" line="353"/>

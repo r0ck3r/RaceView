@@ -346,8 +346,8 @@ void ControlPanel::showAbout() {
     QString html = tr("<h3>RaceView</h3>"
                       "<p>Multi-track synchronized video player built with Qt6 + libmpv.</p>"
                       "<p><b>Author:</b> r0ck3r</p>"
-                      "<p><b>Site:</b> <a href=\"https://github.com/r0ck3r\">"
-                      "https://github.com/r0ck3r</a></p>");
+                      "<p><b>Site:</b> <a href=\"https://github.com/r0ck3r/RaceView\">"
+                      "https://github.com/r0ck3r/RaceView</a></p>");
     const QString ver = QCoreApplication::applicationVersion();
     if (!ver.isEmpty())
         html += tr("<p><b>Version:</b> %1</p>").arg(ver);
