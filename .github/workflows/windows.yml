@@ -58,7 +58,11 @@ jobs:
 
           WDQ="$(command -v windeployqt || true)"
           if [ -n "$WDQ" ]; then
-            "$WDQ" --release --compiler-runtime --no-translations dist/raceview.exe
+            # windeployqt can exit non-zero on benign skips (openssl backend,
+            # D3Dcompiler); it still deploys every Qt DLL + plugin (incl.
+            # Qt6Svg/qsvg/qsvgicon). Don't let that abort this errexit step
+            # before the dependency-closure loop below runs.
+            "$WDQ" --release --compiler-runtime --no-translations dist/raceview.exe || true
           fi
 
           # Resolve the FULL MinGW dependency closure. windeployqt only ships
@@ -70,16 +74,17 @@ jobs:
           # growing (fixpoint), copying anything from /mingw64/bin.
           copy_closure() {
             for b in dist/raceview.exe dist/*.dll; do
-              ldd "$b" 2>/dev/null | grep -oE '/mingw64/bin/[^ ]+\.dll'
+              ldd "$b" 2>/dev/null | grep -oE '/mingw64/bin/[^ ]+\.dll' || true
             done | sort -u | while read -r dll; do
               [ -e "dist/$(basename "$dll")" ] || cp "$dll" dist/
             done
+            return 0
           }
           for _ in 1 2 3 4 5 6 7 8; do
             before=$(find dist -maxdepth 1 -name '*.dll' | wc -l)
             copy_closure
             after=$(find dist -maxdepth 1 -name '*.dll' | wc -l)
-            [ "$before" = "$after" ] && break
+            if [ "$before" = "$after" ]; then break; fi
           done
           echo "dist DLLs: $(find dist -maxdepth 1 -name '*.dll' | wc -l)"
 
