@@ -23,6 +23,7 @@ jobs:
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-svg
             mingw-w64-x86_64-qt6-tools
 
       - name: Download prebuilt libmpv (dev)
@@ -60,13 +61,27 @@ jobs:
             "$WDQ" --release --compiler-runtime --no-translations dist/raceview.exe
           fi
 
-          # MinGW runtime DLLs needed by the exe AND by libmpv-2.dll.
-          # (grep exits 1 when a binary has no /mingw64 deps -> guard the pipe.)
-          {
-            for b in build/raceview.exe dist/libmpv-2.dll; do
+          # Resolve the FULL MinGW dependency closure. windeployqt only ships
+          # Qt DLLs + plugins; it does NOT copy the third-party libs Qt6 pulls in
+          # transitively (icu, pcre2, zlib, zstd, b2, double-conversion, freetype,
+          # harfbuzz, md4c, png, ...). A single ldd of the .exe misses them too,
+          # because they are deps of deps -> missing-DLL crash (0xC0000135) at
+          # launch. Iterate ldd over everything already in dist/ until it stops
+          # growing (fixpoint), copying anything from /mingw64/bin.
+          copy_closure() {
+            for b in dist/raceview.exe dist/*.dll; do
               ldd "$b" 2>/dev/null | grep -oE '/mingw64/bin/[^ ]+\.dll'
+            done | sort -u | while read -r dll; do
+              [ -e "dist/$(basename "$dll")" ] || cp "$dll" dist/
             done
-          } | sort -u | while read -r dll; do cp -n "$dll" dist/; done || true
+          }
+          for _ in 1 2 3 4 5 6 7 8; do
+            before=$(find dist -maxdepth 1 -name '*.dll' | wc -l)
+            copy_closure
+            after=$(find dist -maxdepth 1 -name '*.dll' | wc -l)
+            [ "$before" = "$after" ] && break
+          done
+          echo "dist DLLs: $(find dist -maxdepth 1 -name '*.dll' | wc -l)"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -13,6 +13,7 @@
 
 #include "SyncController.h"
 #include "ControlPanel.h"
+#include "Icons.h"
 #include "Mpris.h"
 
 // Qt6 decodes file-system names with the C-locale codec. If the host locale is
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
     app.setApplicationName("RaceView");
     app.setApplicationDisplayName("RaceView");
     app.setApplicationVersion(QStringLiteral(RACEVIEW_VERSION));
-    app.setWindowIcon(QIcon(":/raceview.svg"));
+    app.setWindowIcon(icons::svgFile(":/raceview.svg", 256));
 
     // Qt вызывает setlocale(LC_ALL, "") в конструкторе, а libmpv требует C
     setlocale(LC_NUMERIC, "C");

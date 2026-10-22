@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-project(raceview VERSION 0.99.1 LANGUAGES CXX)
+project(raceview VERSION 0.99.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets OpenGLWidgets LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS Widgets OpenGLWidgets Svg LinguistTools)
 
 # MPRIS2 (D-Bus) is a Linux-only desktop integration.
 set(RACEVIEW_MPRIS OFF)
@@ -39,7 +39,7 @@ add_executable(raceview
     resources.qrc
 )
 
-target_link_libraries(raceview PRIVATE Qt6::Widgets Qt6::OpenGLWidgets mpv)
+target_link_libraries(raceview PRIVATE Qt6::Widgets Qt6::OpenGLWidgets Qt6::Svg mpv)
 target_compile_definitions(raceview PRIVATE RACEVIEW_VERSION="${PROJECT_VERSION}")
 
 # Optional prebuilt libmpv dev root. Used on Windows CI, where MSYS2 no

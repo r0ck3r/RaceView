@@ -1,12 +1,13 @@
 #pragma once
 
 #include <QByteArray>
-#include <QBuffer>
+#include <QFile>
 #include <QIcon>
 #include <QImage>
-#include <QImageReader>
+#include <QPainter>
 #include <QPixmap>
 #include <QSize>
+#include <QSvgRenderer>
 #include <Qt>
 
 namespace icons {
@@ -52,17 +53,28 @@ inline const char *fullOff() {
            "stroke-linejoin='round' d='M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5'/></svg>";
 }
 
-inline QIcon svg(const char *svg, int size) {
-    QByteArray data(svg);
-    QBuffer buf(&data);
-    buf.open(QIODevice::ReadOnly);
-    QImageReader reader(&buf, "svg");
-    reader.setBackgroundColor(Qt::transparent);
-    QImage img = reader.read();
-    if (img.isNull())
+inline QIcon svg(const QByteArray &data, int size) {
+    QSvgRenderer renderer(data);
+    if (!renderer.isValid())
         return QIcon();
-    img = img.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QImage img(size, size, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+    QPainter painter(&img);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    renderer.render(&painter);
+    painter.end();
     return QIcon(QPixmap::fromImage(img));
+}
+
+inline QIcon svg(const char *src, int size) {
+    return svg(QByteArray(src), size);
+}
+
+inline QIcon svgFile(const QString &resourcePath, int size) {
+    QFile file(resourcePath);
+    if (!file.open(QIODevice::ReadOnly))
+        return QIcon();
+    return svg(file.readAll(), size);
 }
 
 } // namespace icons
