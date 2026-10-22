@@ -1,13 +1,28 @@
 # RaceView
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="RaceView: several video windows playing in sync" width="820">
+</p>
+
 Multi-track synchronized video player built with **Qt6** and **libmpv**.
 
-RaceView plays several video files side by side and keeps them in sync against a
-single *master* track. It is designed for reviewing the same event from multiple
-sources (for example, an F1 race broadcast together with onboard / data-channel
-feeds) with per-track audio selection, offset, and volume.
+RaceView was made for watching **sports events** — above all **Formula 1**. Put
+the TV broadcast next to the onboard cameras, a team / data feed or a second
+angle, and watch them all at the same time, perfectly in step. The same idea
+works for any situation where you need several recordings of one moment side by
+side: other sports, concerts, multi-camera or security footage, A/B takes.
+
+Select **multiple files** and RaceView opens each one in its **own window**, then
+keeps every track **synchronized** against a single *master* track — with
+per-track audio selection, time offset and volume.
 
 Version: **0.99.4**
+
+## Download
+
+Prebuilt binaries for every release — a Linux **AppImage** and a Windows
+**x86_64 zip** — are attached to the
+[latest release](https://github.com/r0ck3r/RaceView/releases/latest).
 
 ## Features
 
@@ -99,6 +114,7 @@ Linux):
 ```
 src/            C++ sources
 icons/          application icon (SVG)
+docs/           screenshots (shown in this README)
 test/           sample media (not tracked)
 raceview.desktop  desktop entry
 raceview_*.ts     translations (ru, de, es, fr)
