@@ -7,7 +7,7 @@ single *master* track. It is designed for reviewing the same event from multiple
 sources (for example, an F1 race broadcast together with onboard / data-channel
 feeds) with per-track audio selection, offset, and volume.
 
-Version: **0.99.3**
+Version: **0.99.4**
 
 ## Features
 
