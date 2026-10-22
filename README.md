@@ -123,4 +123,14 @@ resources.qrc     Qt resources
 
 ## License
 
+RaceView is free software: you can redistribute it and/or modify it under the
+terms of the **GNU General Public License** as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version (`GPL-3.0-or-later`). The full license text is in the
+[`LICENSE`](LICENSE) file.
+
 Copyright (c) 2026 r0ck3r — <https://github.com/r0ck3r>
+
+RaceView links against **libmpv** (`GPL-3.0-or-later`) and **Qt 6**
+(`LGPL-3.0`); the GPL applies to the combined work. See each upstream project
+for its own license terms.
