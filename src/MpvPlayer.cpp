@@ -37,15 +37,28 @@ bool MpvPlayer::initialize() {
         m_handle = nullptr;
         return false;
     }
+    observeProperties();
     return true;
 }
 
+void MpvPlayer::observeProperties() {
+    if (!m_handle)
+        return;
+    mpv_observe_property(m_handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_handle, 0, "duration", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_handle, 0, "pause", MPV_FORMAT_FLAG);
+}
+
 void MpvPlayer::loadFile(const QString &path) {
-    command({"loadfile", path, "replace"});
+    m_timePos = -1.0;
+    m_duration = -1.0;
+    commandAsync({"loadfile", path, "replace"});
 }
 
 void MpvPlayer::stop() {
-    command({"stop"});
+    m_timePos = -1.0;
+    m_duration = -1.0;
+    commandAsync({"stop"});
 }
 
 void MpvPlayer::command(const QStringList &args) {
@@ -81,39 +94,53 @@ void MpvPlayer::commandAsync(const QStringList &args) {
 void MpvPlayer::drainEvents() {
     if (!m_handle)
         return;
-    while (mpv_event *ev = mpv_wait_event(m_handle, 0))
+    while (mpv_event *ev = mpv_wait_event(m_handle, 0)) {
         if (ev->event_id == MPV_EVENT_NONE)
             break;
+        if (ev->event_id == MPV_EVENT_PROPERTY_CHANGE) {
+            auto *p = static_cast<mpv_event_property *>(ev->data);
+            if (!p || !p->name)
+                continue;
+            if (std::strcmp(p->name, "time-pos") == 0) {
+                if (p->format == MPV_FORMAT_DOUBLE && p->data)
+                    m_timePos = *static_cast<double *>(p->data);
+                else if (p->format == MPV_FORMAT_NONE)
+                    m_timePos = -1.0;
+            } else if (std::strcmp(p->name, "duration") == 0) {
+                if (p->format == MPV_FORMAT_DOUBLE && p->data)
+                    m_duration = *static_cast<double *>(p->data);
+                else if (p->format == MPV_FORMAT_NONE)
+                    m_duration = -1.0;
+            } else if (std::strcmp(p->name, "pause") == 0) {
+                if (p->format == MPV_FORMAT_FLAG && p->data)
+                    m_pause = *static_cast<int *>(p->data) != 0;
+            }
+        }
+    }
 }
 
 void MpvPlayer::setPaused(bool paused) {
     if (!m_handle)
         return;
     int flag = paused ? 1 : 0;
-    mpv_set_property(m_handle, "pause", MPV_FORMAT_FLAG, &flag);
+    m_pause = paused; // optimistic: keeps isPlaying() correct without a round-trip
+    mpv_set_property_async(m_handle, 0, "pause", MPV_FORMAT_FLAG, &flag);
 }
 
-bool MpvPlayer::isPaused() const {
-    if (!m_handle)
-        return true;
-    int flag = 1;
-    if (mpv_get_property(m_handle, "pause", MPV_FORMAT_FLAG, &flag) < 0)
-        return true;
-    return flag != 0;
-}
+bool MpvPlayer::isPaused() const { return m_pause; }
 
 void MpvPlayer::setSpeed(double speed) {
     if (!m_handle)
         return;
     double v = speed;
-    mpv_set_property(m_handle, "speed", MPV_FORMAT_DOUBLE, &v);
+    mpv_set_property_async(m_handle, 0, "speed", MPV_FORMAT_DOUBLE, &v);
 }
 
 void MpvPlayer::setVolume(double volume) {
     if (!m_handle)
         return;
     double v = volume;
-    mpv_set_property(m_handle, "volume", MPV_FORMAT_DOUBLE, &v);
+    mpv_set_property_async(m_handle, 0, "volume", MPV_FORMAT_DOUBLE, &v);
 }
 
 double MpvPlayer::volume() const {
@@ -128,7 +155,7 @@ void MpvPlayer::setMuted(bool muted) {
     if (!m_handle)
         return;
     int flag = muted ? 1 : 0;
-    mpv_set_property(m_handle, "mute", MPV_FORMAT_FLAG, &flag);
+    mpv_set_property_async(m_handle, 0, "mute", MPV_FORMAT_FLAG, &flag);
 }
 
 void MpvPlayer::seekAbsolute(double t) {
@@ -136,7 +163,7 @@ void MpvPlayer::seekAbsolute(double t) {
 }
 
 void MpvPlayer::frameStep(bool backward) {
-    command({backward ? "frame-back-step" : "frame-step"});
+    commandAsync({backward ? "frame-back-step" : "frame-step"});
 }
 
 QVector<MpvPlayer::AudioTrack> MpvPlayer::audioTracks() const {
@@ -205,19 +232,6 @@ int MpvPlayer::audioId() const {
     return int(v);
 }
 
-double MpvPlayer::timePos() const {
-    return getDouble("time-pos");
-}
+double MpvPlayer::timePos() const { return m_timePos; }
 
-double MpvPlayer::duration() const {
-    return getDouble("duration");
-}
-
-double MpvPlayer::getDouble(const char *name) const {
-    if (!m_handle)
-        return -1.0;
-    double v = -1.0;
-    if (mpv_get_property(m_handle, name, MPV_FORMAT_DOUBLE, &v) < 0)
-        return -1.0;
-    return v;
-}
+double MpvPlayer::duration() const { return m_duration; }

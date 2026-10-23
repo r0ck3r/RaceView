@@ -46,7 +46,15 @@ public:
     double duration() const;
 
 private:
-    double getDouble(const char *name) const;
+    void observeProperties();
 
     mpv_handle *m_handle = nullptr;
+
+    // Asynchronously cached properties. The GUI thread never calls the
+    // blocking mpv_get_property/mpv_set_property on the hot path: reads come
+    // from these caches (refreshed in drainEvents) and writes are async, so a
+    // long-running exact seek in the mpv core can never freeze the UI.
+    double m_timePos = -1.0;
+    double m_duration = -1.0;
+    bool m_pause = false;
 };

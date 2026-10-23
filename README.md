@@ -85,9 +85,10 @@ add tracks through the control panel after launch.
 | Key | Action |
 | --- | --- |
 | `Space` | Play / pause |
-| `←` / `→` | Seek ∓5s (`Shift` = ∓60s) |
+| `←` / `→` | Seek ∓10s |
 | `,` / `.` | Frame step back / forward |
-| `↑` / `↓` | Volume up / down |
+| `↑` / `↓` | Seek ∓60s |
+| `PgUp` / `PgDn` | Volume up / down |
 | `[` / `]` | Speed down / up |
 | `F` | Toggle fullscreen |
 | `Esc` | Exit fullscreen |

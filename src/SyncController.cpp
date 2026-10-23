@@ -72,6 +72,9 @@ bool SyncController::start(const QStringList &paths) {
 
 void SyncController::stopAll() {
     m_timer.stop();
+    m_seekHolding = false;
+    m_seekWasPlaying = false;
+    m_seekDelta = 0.0;
     if (!m_started)
         return;
     for (const Track &tr : m_tracks)
@@ -92,10 +95,15 @@ bool SyncController::isPlaying() const {
 void SyncController::togglePlay() {
     if (!m_started || m_tracks.empty())
         return;
-    const bool pause = m_tracks[0].player->isPaused();
+    // During a scrub hold the players are auto-paused for the gesture; the
+    // user-facing state is the intent (m_seekWasPlaying), not the real pause.
+    const bool pause = m_seekHolding ? !m_seekWasPlaying
+                                     : m_tracks[0].player->isPaused();
     for (const Track &tr : m_tracks)
         if (tr.enabled)
             tr.player->setPaused(!pause);
+    if (m_seekHolding)
+        m_seekWasPlaying = !pause;
     emit playbackStateChanged();
 }
 
@@ -105,6 +113,8 @@ void SyncController::play() {
     for (const Track &tr : m_tracks)
         if (tr.enabled)
             tr.player->setPaused(false);
+    if (m_seekHolding)
+        m_seekWasPlaying = true;
     emit playbackStateChanged();
 }
 
@@ -114,12 +124,12 @@ void SyncController::pause() {
     for (const Track &tr : m_tracks)
         if (tr.enabled)
             tr.player->setPaused(true);
+    if (m_seekHolding)
+        m_seekWasPlaying = false;
     emit playbackStateChanged();
 }
 
-void SyncController::seekTo(double t) {
-    if (!m_started)
-        return;
+void SyncController::applySeek(double t) {
     for (int i = 0; i < int(m_tracks.size()); ++i) {
         Track &tr = m_tracks[i];
         if (!tr.enabled)
@@ -128,6 +138,12 @@ void SyncController::seekTo(double t) {
         double target = (i == 0) ? t : t + tr.offset;
         tr.player->seekAbsolute(qMax(0.0, target));
     }
+}
+
+void SyncController::seekTo(double t) {
+    if (!m_started)
+        return;
+    applySeek(t);
     emit seeked(t);
 }
 
@@ -142,6 +158,47 @@ void SyncController::seekRelative(double dt) {
     if (t < 0)
         t = 0;
     seekTo(t + dt);
+}
+
+// Hold-to-seek. While an arrow key is held we pause playback and only
+// accumulate the requested target, driving the OSD and the progress slider.
+// The video itself is NOT seeked during the hold (no mpv traffic at all); the
+// single real seek happens in endSeekHold() on key release.
+void SyncController::nudgeSeek(double dt) {
+    if (!m_started)
+        return;
+    if (!m_seekHolding) {
+        m_seekWasPlaying = isPlaying();
+        if (m_seekWasPlaying)
+            pause(); // must run before m_seekHolding is set
+        m_seekHolding = true;
+        double t = masterTime();
+        if (t < 0)
+            t = 0;
+        m_seekTarget = t;
+        m_seekDelta = 0.0;
+    }
+    m_seekTarget = m_seekTarget + dt;
+    if (m_seekTarget < 0)
+        m_seekTarget = 0;
+    const double dur = masterDuration();
+    if (dur > 0 && m_seekTarget > dur)
+        m_seekTarget = dur;
+    m_seekDelta += dt;
+    m_seekLastNudgeMs = m_clock.elapsed();
+    emit seekProgress(m_seekTarget, m_seekDelta);
+}
+
+void SyncController::endSeekHold() {
+    if (!m_seekHolding)
+        return;
+    m_seekHolding = false;
+    const double target = m_seekTarget;
+    m_seekDelta = 0.0;
+    seekTo(target);
+    if (m_seekWasPlaying)
+        play();
+    m_seekWasPlaying = false;
 }
 
 void SyncController::frameStep(bool backward) {
@@ -236,9 +293,24 @@ QString SyncController::masterPath() const {
 void SyncController::tick() {
     if (!m_started || m_tracks.empty())
         return;
+
+    // During a hold-to-seek we deliberately do not touch mpv at all: no event
+    // draining, no position reads, no corrective seeks. The OSD is driven purely
+    // from the accumulated target and the single real seek happens on release.
+    // This keeps the core completely idle while the user scrubs.
+    if (m_seekHolding) {
+        // Safety net: if a key-release was never delivered (focus loss, etc.)
+        // the hold would otherwise leave playback paused forever. Autorepeat is
+        // continuous, so a long gap means the gesture effectively ended.
+        if (m_clock.elapsed() - m_seekLastNudgeMs > 1500)
+            endSeekHold();
+        return;
+    }
+
     for (const Track &tr : m_tracks)
         if (tr.enabled && tr.player)
             tr.player->drainEvents();
+
     const double t = masterTime();
     if (t < 0)
         return;

@@ -8,6 +8,7 @@
 
 #include <QKeyEvent>
 #include <QCloseEvent>
+#include <QHideEvent>
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QThread>
@@ -66,7 +67,11 @@ PlayerWindow::PlayerWindow(int index, MpvPlayer *player, const QString &role,
 
     m_osdTimer.setSingleShot(true);
     connect(&m_osdTimer, &QTimer::timeout, this,
-            [this] { if (m_osd) m_osd->hide(); });
+            [this] {
+                if (m_osd)
+                    m_osd->hide();
+                m_osdDelta.clear();
+            });
 
     setCentralWidget(m_container);
     setWindowTitle(role);
@@ -120,12 +125,19 @@ PlayerWindow::PlayerWindow(int index, MpvPlayer *player, const QString &role,
         }
     });
     connect(&m_timer, &QTimer::timeout, this, &PlayerWindow::updateBar);
+    connect(&m_holdTimer, &QTimer::timeout, this, &PlayerWindow::holdRepeat);
 
     connect(m_sync, &SyncController::seekPreview, this, [this](double t) {
         showOsd(t, t - m_sync->masterTime());
     });
     connect(m_sync, &SyncController::seeked, this,
             [this](double t) { showOsd(t, 0.0); });
+    connect(m_sync, &SyncController::seekProgress, this,
+            [this](double t, double delta) {
+                showOsd(t, delta);
+                if (m_seek && m_sync->seekHolding() && !m_dragging)
+                    m_seek->setValue(int(t * 1000));
+            });
 }
 
 void PlayerWindow::buildControls(QVBoxLayout *lay) {
@@ -243,7 +255,11 @@ void PlayerWindow::updateBar() {
         m_playBtn->setIcon(
             icons::svg(m_sync->isPlaying() ? icons::pause() : icons::play(), 20));
 
-    const double t = m_sync->masterTime();
+    double t = m_sync->masterTime();
+    // While an arrow key is held the real position is frozen (we pause and do
+    // not poll mpv), so drive the bar from the scrub target for live feedback.
+    if (m_sync->seekHolding())
+        t = m_sync->seekTarget();
     const double d = m_sync->masterDuration();
     if (m_seek && d > 0) {
         m_seek->setRange(0, int(d * 1000));
@@ -254,6 +270,11 @@ void PlayerWindow::updateBar() {
         m_timeLabel->setText(fmtTime(t) + " / " + fmtTime(d));
 
     refreshAudio();
+}
+
+void PlayerWindow::holdRepeat() {
+    if (m_sync->seekHolding())
+        m_sync->nudgeSeek(m_holdDt);
 }
 
 void PlayerWindow::refreshAudio() {
@@ -384,6 +405,10 @@ void PlayerWindow::showOsd(double target, double delta) {
         sub = QString("%1%2")
                   .arg(delta < 0 ? QLatin1Char('-') : QLatin1Char('+'))
                   .arg(fmtTime(qAbs(delta)));
+    if (sub.isEmpty())
+        sub = m_osdDelta; // keep the last offset until the whole OSD hides
+    else
+        m_osdDelta = sub;
     const double d = m_sync->masterDuration();
     const double frac = d > 0 ? target / d : 0.0;
     m_osd->showSeek(fmtTime(target), sub, frac);
@@ -396,6 +421,7 @@ void PlayerWindow::showOsd(double target, double delta) {
 void PlayerWindow::showVolumeOsd(int percent) {
     if (!m_sync->isStarted() || !m_osd)
         return;
+    m_osdDelta.clear();
     m_osd->showVolume(tr("Volume %1%").arg(percent), percent / 130.0);
     positionOsd();
     m_osd->show();
@@ -448,24 +474,55 @@ void PlayerWindow::closeEvent(QCloseEvent *ev) {
     emit closed();
 }
 
-void PlayerWindow::keyPressEvent(QKeyEvent *ev) {
-    const bool shift = ev->modifiers().testFlag(Qt::ShiftModifier);
+void PlayerWindow::changeEvent(QEvent *ev) {
+    QMainWindow::changeEvent(ev);
+    if (ev->type() == QEvent::ActivationChange && !isActiveWindow())
+        cancelSeekHold();
+}
 
+void PlayerWindow::hideEvent(QHideEvent *ev) {
+    QMainWindow::hideEvent(ev);
+    cancelSeekHold();
+}
+
+// The key-release may never arrive after focus loss (Alt+Tab, window hidden,
+// closed): stop the repeat timer and commit the scrub immediately instead of
+// waiting for the SyncController safety net.
+void PlayerWindow::cancelSeekHold() {
+    m_holdTimer.stop();
+    m_sync->endSeekHold();
+}
+
+void PlayerWindow::keyPressEvent(QKeyEvent *ev) {
     switch (ev->key()) {
     case Qt::Key_Space:
         m_sync->togglePlay();
         break;
     case Qt::Key_Left:
-        m_sync->seekRelative(shift ? -60.0 : -5.0);
-        break;
     case Qt::Key_Right:
-        m_sync->seekRelative(shift ? 60.0 : 5.0);
-        break;
     case Qt::Key_Up:
+    case Qt::Key_Down: {
+        if (ev->isAutoRepeat()) {
+            ev->ignore();
+            return;
+        }
+        double dt = 0.0;
+        switch (ev->key()) {
+        case Qt::Key_Left:  dt = -10.0; break;
+        case Qt::Key_Right: dt =  10.0; break;
+        case Qt::Key_Up:    dt =  60.0; break;
+        case Qt::Key_Down:  dt = -60.0; break;
+        }
+        m_holdDt = dt;
+        m_sync->nudgeSeek(dt);
+        m_holdTimer.start(120);
+        break;
+    }
+    case Qt::Key_PageUp:
         if (m_volSlider && m_sync->isStarted())
             m_volSlider->setValue(m_volSlider->value() + 5);
         break;
-    case Qt::Key_Down:
+    case Qt::Key_PageDown:
         if (m_volSlider && m_sync->isStarted())
             m_volSlider->setValue(m_volSlider->value() - 5);
         break;
@@ -489,10 +546,29 @@ void PlayerWindow::keyPressEvent(QKeyEvent *ev) {
             toggleFullscreen();
         break;
     case Qt::Key_S:
-        m_player->command({"screenshot"});
+        m_player->commandAsync({"screenshot"});
         break;
     default:
         QMainWindow::keyPressEvent(ev);
         return;
     }
+}
+
+void PlayerWindow::keyReleaseEvent(QKeyEvent *ev) {
+    switch (ev->key()) {
+    case Qt::Key_Left:
+    case Qt::Key_Right:
+    case Qt::Key_Up:
+    case Qt::Key_Down:
+        if (ev->isAutoRepeat()) {
+            ev->ignore();
+            return;
+        }
+        m_holdTimer.stop();
+        m_sync->endSeekHold();
+        break;
+    default:
+        break;
+    }
+    QMainWindow::keyReleaseEvent(ev);
 }

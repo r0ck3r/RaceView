@@ -31,7 +31,10 @@ public:
 
 protected:
     void keyPressEvent(QKeyEvent *ev) override;
+    void keyReleaseEvent(QKeyEvent *ev) override;
     void closeEvent(QCloseEvent *ev) override;
+    void changeEvent(QEvent *ev) override;
+    void hideEvent(QHideEvent *ev) override;
     void resizeEvent(QResizeEvent *ev) override;
     bool eventFilter(QObject *obj, QEvent *ev) override;
 
@@ -40,9 +43,11 @@ signals:
 
 private slots:
     void updateBar();
+    void holdRepeat();
 
 private:
     void toggleFullscreen();
+    void cancelSeekHold();
     void buildControls(QVBoxLayout *lay);
     void refreshAudio();
     void openAudioDialog();
@@ -75,9 +80,12 @@ private:
     QSlider *m_volSlider = nullptr;
     QDoubleSpinBox *m_offset = nullptr;
     OsdWidget *m_osd = nullptr;
+    QString m_osdDelta;
     QTimer m_timer;
     QTimer m_hideTimer;
     QTimer m_osdTimer;
+    QTimer m_holdTimer;
+    double m_holdDt = 0.0;
     bool m_dragging = false;
     int m_audioTries = 0;
 };

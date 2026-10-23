@@ -23,6 +23,8 @@ public:
     void stopAll();
 
     bool isStarted() const { return m_started; }
+    bool seekHolding() const { return m_seekHolding; }
+    double seekTarget() const { return m_seekTarget; }
     int trackCount() const { return m_tracks.size(); }
     MpvPlayer *player(int index) const;
     bool isTrackEnabled(int index) const;
@@ -33,6 +35,8 @@ public:
     void pause();
     void seekTo(double t);
     void seekRelative(double dt);
+    void nudgeSeek(double dt);
+    void endSeekHold();
     void previewSeek(double t);
     void frameStep(bool backward);
 
@@ -61,9 +65,13 @@ signals:
     void playbackStateChanged();
     void seeked(double target);
     void seekPreview(double target);
+    void seekProgress(double target, double delta);
+
+private slots:
+    void tick();
 
 private:
-    void tick();
+    void applySeek(double t);
     bool ensureTracks(int count);
 
     struct Track {
@@ -84,4 +92,12 @@ private:
     bool m_started = false;
     double m_speed = 1.0;
     double m_volume = 100.0;
+
+    // Hold-to-seek: while an arrow key is held we only accumulate a target and
+    // drive the OSD; the real (exact) seek is issued once, on key release.
+    bool m_seekHolding = false;
+    bool m_seekWasPlaying = false;
+    double m_seekTarget = 0.0;
+    double m_seekDelta = 0.0;
+    qint64 m_seekLastNudgeMs = 0;
 };
