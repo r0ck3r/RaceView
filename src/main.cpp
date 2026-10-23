@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     app.setApplicationVersion(QStringLiteral(RACEVIEW_VERSION));
     app.setWindowIcon(icons::svgFile(":/raceview.svg", 256));
 
-    // Qt вызывает setlocale(LC_ALL, "") в конструкторе, а libmpv требует C
+    // Qt calls setlocale(LC_ALL, "") in the constructor, but libmpv needs C
     setlocale(LC_NUMERIC, "C");
 
     const QString lang = resolveLanguage();
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
     SyncController sync;
     ControlPanel panel(&sync);
 
-    // Единая MPRIS2-регистрация на процесс (глобальные медиа-клавиши).
+    // Single MPRIS2 registration per process (global media keys).
     Mpris mpris(&sync);
     QObject::connect(&mpris, &Mpris::raiseRequested, &panel,
                      &ControlPanel::raiseWindows);

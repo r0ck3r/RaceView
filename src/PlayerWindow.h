@@ -56,6 +56,7 @@ private:
     void positionBar();
     void showOsd(double target, double delta);
     void showVolumeOsd(int percent);
+    void showStateOsd();
     void positionOsd();
 
     int m_index;
@@ -88,4 +89,5 @@ private:
     double m_holdDt = 0.0;
     bool m_dragging = false;
     int m_audioTries = 0;
+    bool m_lastPlaying = true;
 };

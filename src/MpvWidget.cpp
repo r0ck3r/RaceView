@@ -51,8 +51,8 @@ void MpvWidget::initializeGL() {
     else {
         m_render = nullptr;
         fprintf(stderr,
-                "MpvWidget: не удалось создать mpv render context "
-                "(проблема с OpenGL/драйвером) — видео показываться не будет\n");
+                "MpvWidget: could not create the mpv render context "
+                "(OpenGL/driver problem) - video will not be shown\n");
     }
 }
 

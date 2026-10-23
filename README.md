@@ -16,7 +16,7 @@ Select **multiple files** and RaceView opens each one in its **own window**, the
 keeps every track **synchronized** against a single *master* track — with
 per-track audio selection, time offset and volume.
 
-Version: **0.99.4**
+Version: **0.99.5**
 
 ## Download
 
@@ -33,7 +33,8 @@ Prebuilt binaries for every release — a Linux **AppImage** and a Windows
 - **Audio track selection** — compact button opens a modal dialog listing all
   audio tracks (language / title / id).
 - **Synchronized seeking** — global and per-track seek with a large on-screen
-  OSD showing the target time and delta.
+  OSD showing the target time and delta; play/pause is confirmed on screen the
+  same way (icon + "Playing"/"Paused").
 - **Fullscreen** — per window (double-click, `F`, or button) or all windows at
   once; floating auto-hiding control bar in fullscreen.
 - **MPRIS / D-Bus** — `org.mpris.MediaPlayer2.raceview` for system media keys
@@ -41,7 +42,11 @@ Prebuilt binaries for every release — a Linux **AppImage** and a Windows
 - **Internationalization** — English source language with Russian, German,
   Spanish and French translations; language follows the system locale by
   default and can be switched in the UI.
-- **Hardware decoding** — `hwdec=auto-copy` by default (overridable).
+- **Hardware decoding** — copy-only hwaccels by default (`vaapi-copy,vdpau-copy,
+  nvdec-copy,cuda-copy`), software fallback; FFmpeg's Vulkan decoder is excluded
+  because it corrupts H.264 frames on some drivers. Pick a decoder in the
+  control panel (bottom row, "Decoder") — it is saved and applied to running
+  playback immediately; the tooltip shows the decoder actually in use.
 
 ## Requirements
 
@@ -98,7 +103,7 @@ add tracks through the control panel after launch.
 
 | Variable | Meaning |
 | --- | --- |
-| `RACEVIEW_HWDEC` | Override `hwdec` (default `auto-copy`) |
+| `RACEVIEW_HWDEC` | Override `hwdec` (default: copy-only list, see above) |
 | `RACEVIEW_HEADLESS` | Headless mode (`vo=null`), for testing |
 | `RACEVIEW_DEBUG` | Verbose mpv logging |
 

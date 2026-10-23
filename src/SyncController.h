@@ -29,6 +29,11 @@ public:
     MpvPlayer *player(int index) const;
     bool isTrackEnabled(int index) const;
     bool isPlaying() const;
+    // What the user asked for: hold-to-seek auto-pauses the players, which is
+    // not a pause the user requested, so it must not look like one in the UI.
+    bool isPlayingIntent() const {
+        return m_seekHolding ? m_seekWasPlaying : isPlaying();
+    }
 
     void togglePlay();
     void play();
@@ -48,6 +53,9 @@ public:
     double volume() const { return m_volume; }
 
     void setTrackMuted(int index, bool muted);
+    // Decoder choice (mpv hwdec value, "" = built-in default) for every track.
+    void setHwdec(const QString &api);
+    QString hwdecCurrent() const;
     void setTrackVolume(int index, double volume);
     double trackVolume(int index) const;
     void setTrackOffset(int index, double offset);

@@ -111,9 +111,12 @@ PlayerWindow::PlayerWindow(int index, MpvPlayer *player, const QString &role,
             m_offset->setEnabled(started);
         if (started) {
             m_audioTries = 0;
+            m_lastPlaying = m_sync->isPlayingIntent();
             m_timer.start(250);
         } else {
             m_timer.stop();
+            if (m_osd)
+                m_osd->hide();
             m_audioLabels.clear();
             m_audioIds.clear();
             m_audioSel = -1;
@@ -239,8 +242,9 @@ QImage PlayerWindow::grabVideo() {
 
 void PlayerWindow::ensureRenderReady() {
     show();
-    // mpv с vo=libmpv требует render context ДО загрузки файла, иначе
-    // видеовывод не поднимается ("Video: no video"). Дожидаемся initializeGL.
+    // mpv with vo=libmpv needs the render context before the file is loaded,
+    // otherwise the video output never comes up ("Video: no video").
+    // Wait for initializeGL.
     for (int i = 0; i < 100 && !m_widget->isRenderReady(); ++i) {
         QCoreApplication::processEvents();
         QThread::msleep(10);
@@ -251,9 +255,15 @@ void PlayerWindow::updateBar() {
     if (!m_sync->isStarted())
         return;
 
+    const bool playing = m_sync->isPlayingIntent();
     if (m_playBtn)
         m_playBtn->setIcon(
-            icons::svg(m_sync->isPlaying() ? icons::pause() : icons::play(), 20));
+            icons::svg(playing ? icons::pause() : icons::play(), 20));
+
+    if (playing != m_lastPlaying) {
+        m_lastPlaying = playing;
+        showStateOsd();
+    }
 
     double t = m_sync->masterTime();
     // While an arrow key is held the real position is frozen (we pause and do
@@ -429,6 +439,21 @@ void PlayerWindow::showVolumeOsd(int percent) {
     m_osdTimer.start(1500);
 }
 
+void PlayerWindow::showStateOsd() {
+    if (!m_sync->isStarted() || !m_osd)
+        return;
+    const bool playing = m_sync->isPlayingIntent();
+    const QPixmap icon =
+        icons::svg(playing ? icons::playOsd() : icons::pauseOsd(), 44)
+            .pixmap(QSize(44, 44));
+    m_osdDelta.clear();
+    m_osd->showState(playing ? tr("Playing") : tr("Paused"), icon);
+    positionOsd();
+    m_osd->show();
+    m_osd->raise();
+    m_osdTimer.start(1500);
+}
+
 void PlayerWindow::positionOsd() {
     if (!m_osd || !m_container)
         return;
@@ -470,7 +495,7 @@ void PlayerWindow::toggleFullscreen() {
 
 void PlayerWindow::closeEvent(QCloseEvent *ev) {
     QMainWindow::closeEvent(ev);
-    hide(); // скрыть ДО сигнала: иначе isVisible() ещё true при проверке
+    hide(); // hide BEFORE emitting: isVisible() is still true otherwise
     emit closed();
 }
 

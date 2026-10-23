@@ -12,6 +12,7 @@ constexpr int BARW = 460;
 constexpr int BARH = 16;
 constexpr int MAIN_PX = 52;
 constexpr int SUB_PX = 26;
+constexpr int ICON_GAP = 18;
 } // namespace
 
 OsdWidget::OsdWidget(QWidget *parent) : QWidget(parent) {
@@ -26,6 +27,7 @@ void OsdWidget::showSeek(const QString &time, const QString &delta,
     m_sub = delta;
     m_frac = qBound(0.0, frac, 1.0);
     m_hasBar = true;
+    m_icon = QPixmap();
     recalc();
 }
 
@@ -34,6 +36,15 @@ void OsdWidget::showVolume(const QString &text, double frac) {
     m_sub.clear();
     m_frac = qBound(0.0, frac, 1.0);
     m_hasBar = true;
+    m_icon = QPixmap();
+    recalc();
+}
+
+void OsdWidget::showState(const QString &text, const QPixmap &icon) {
+    m_main = text;
+    m_sub.clear();
+    m_hasBar = false;
+    m_icon = icon;
     recalc();
 }
 
@@ -49,6 +60,10 @@ void OsdWidget::recalc() {
     QFontMetrics m1(f1), m2(f2);
     int w = m1.horizontalAdvance(m_main);
     int h = m1.height();
+    if (!m_icon.isNull()) {
+        w += ICON_GAP + m_icon.width();
+        h = qMax(h, m_icon.height());
+    }
     if (!m_sub.isEmpty()) {
         w = qMax(w, m2.horizontalAdvance(m_sub));
         h += GAP + m2.height();
@@ -83,8 +98,16 @@ void OsdWidget::paintEvent(QPaintEvent *) {
     int y = PAD;
     p.setPen(Qt::white);
     p.setFont(f1);
-    p.drawText(QRect(0, y, width(), m1.height()),
-               Qt::AlignHCenter | Qt::AlignVCenter, m_main);
+    const int textW = m1.horizontalAdvance(m_main);
+    const int iconW = m_icon.isNull() ? 0 : m_icon.width();
+    const int blockW = textW + (iconW ? ICON_GAP + iconW : 0);
+    int x = (width() - blockW) / 2;
+    if (iconW) {
+        p.drawPixmap(x, y + (m1.height() - m_icon.height()) / 2, m_icon);
+        x += iconW + ICON_GAP;
+    }
+    p.drawText(QRect(x, y, textW, m1.height()),
+               Qt::AlignLeft | Qt::AlignVCenter, m_main);
     y += m1.height();
 
     if (!m_sub.isEmpty()) {

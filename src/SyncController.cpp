@@ -29,6 +29,19 @@ MpvPlayer *SyncController::player(int index) const {
     return m_tracks[index].player.get();
 }
 
+void SyncController::setHwdec(const QString &api) {
+    for (auto &tr : m_tracks)
+        if (tr.player)
+            tr.player->setHwdec(api);
+}
+
+QString SyncController::hwdecCurrent() const {
+    for (const auto &tr : m_tracks)
+        if (tr.player && !tr.player->hwdecCurrent().isEmpty())
+            return tr.player->hwdecCurrent();
+    return QString();
+}
+
 bool SyncController::isTrackEnabled(int index) const {
     return index >= 0 && index < int(m_tracks.size()) && m_tracks[index].enabled;
 }

@@ -75,6 +75,7 @@ private:
     QSlider *m_speed = nullptr;
     QLabel *m_speedLabel = nullptr;
     QComboBox *m_langCombo = nullptr;
+    QComboBox *m_hwdecCombo = nullptr;
 
     QWidget *m_controls = nullptr;
 

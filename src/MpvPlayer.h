@@ -15,6 +15,10 @@ public:
         bool isDefault = false;
     };
 
+    // hwdec value used by initialize(): RACEVIEW_HWDEC wins, then the GUI
+    // choice stored in the settings, then the built-in copy-only list.
+    static QString defaultHwdec();
+
     MpvPlayer() = default;
     ~MpvPlayer();
     MpvPlayer(const MpvPlayer &) = delete;
@@ -32,6 +36,10 @@ public:
     void setPaused(bool paused);
     bool isPaused() const;
     void setSpeed(double speed);
+    // Runtime hwdec switch: mpv reinitializes the decoder, playback continues.
+    void setHwdec(const QString &api);
+    // The API mpv actually ended up using, e.g. "vdpau-copy" ("" = software).
+    QString hwdecCurrent() const;
     void setVolume(double volume);
     double volume() const;
     void setMuted(bool muted);
@@ -57,4 +65,5 @@ private:
     double m_timePos = -1.0;
     double m_duration = -1.0;
     bool m_pause = false;
+    QString m_hwdecCurrent;
 };

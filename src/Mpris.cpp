@@ -17,12 +17,12 @@ bool Mpris::registerService() {
         return false;
     const QString service = QStringLiteral("org.mpris.MediaPlayer2.raceview");
     if (!bus.registerService(service))
-        return false; // уже зарегистрирован другим экземпляром
+        return false; // already registered by another instance
     return bus.registerObject(QStringLiteral("/org/mpris/MediaPlayer2"), this,
                               QDBusConnection::ExportAdaptors);
 }
 
-#else // MPRIS недоступен (Windows/macOS): no-op заглушка
+#else // MPRIS is unavailable (Windows/macOS): no-op stub
 
 Mpris::Mpris(SyncController *sync, QObject *parent)
     : QObject(parent), m_sync(sync) {}

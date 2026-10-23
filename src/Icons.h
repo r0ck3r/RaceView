@@ -36,6 +36,17 @@ inline const char *pause() {
            "<path fill='#202020' d='M7 5h4v14H7zM13 5h4v14h-4z'/></svg>";
 }
 
+// White copies for the OSD, which is drawn on a dark rounded panel.
+inline const char *playOsd() {
+    return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+           "<path fill='#ffffff' d='M8 5v14l11-7z'/></svg>";
+}
+
+inline const char *pauseOsd() {
+    return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+           "<path fill='#ffffff' d='M7 5h4v14H7zM13 5h4v14h-4z'/></svg>";
+}
+
 inline const char *audio() {
     return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
            "<path fill='#202020' d='M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z'/></svg>";

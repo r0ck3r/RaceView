@@ -5,8 +5,8 @@
 
 class SyncController;
 
-// Единая MPRIS2-регистрация на процесс: org.mpris.MediaPlayer2.raceview.
-// Количество видео-окон не влияет: сервис всегда один.
+// Single MPRIS2 registration per process: org.mpris.MediaPlayer2.raceview.
+// The number of video windows is irrelevant: there is always one service.
 class Mpris : public QObject {
     Q_OBJECT
 public:

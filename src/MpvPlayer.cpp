@@ -1,11 +1,36 @@
 #include "MpvPlayer.h"
 #include <QByteArray>
+#include <QSettings>
 #include <vector>
 #include <cstring>
 
 MpvPlayer::~MpvPlayer() {
     if (m_handle)
         mpv_terminate_destroy(m_handle);
+}
+
+// Only the -copy hwaccels work here: zero-copy (nvdec/vaapi) never hands
+// frames to libmpv's OpenGL render API, so audio plays over a black image.
+// The API list is explicit instead of auto-copy, which picks FFmpeg's Vulkan
+// decoder and corrupts H.264 frames on some drivers (NVIDIA) - periodic
+// picture breakdown (SSIM 0.97 against software decode of the same file).
+// mpv ignores unknown names, so the list works with any libmpv version, and
+// when no API initializes mpv falls back to software decoding.
+QString MpvPlayer::defaultHwdec() {
+    const QByteArray env = qgetenv("RACEVIEW_HWDEC");
+    if (!env.isEmpty())
+        return QString::fromUtf8(env);
+    const QString saved =
+        QSettings(QStringLiteral("raceview"), QStringLiteral("raceview"))
+            .value(QStringLiteral("hwdec"))
+            .toString();
+    if (!saved.isEmpty())
+        return saved;
+#if defined(Q_OS_WIN)
+    return QStringLiteral("d3d11va-copy,nvdec-copy,cuda-copy,dxva2-copy");
+#else
+    return QStringLiteral("vaapi-copy,vdpau-copy,nvdec-copy,cuda-copy");
+#endif
 }
 
 bool MpvPlayer::initialize() {
@@ -15,10 +40,7 @@ bool MpvPlayer::initialize() {
 
     const bool headless = qEnvironmentVariableIsSet("RACEVIEW_HEADLESS");
     const bool debug = qEnvironmentVariableIsSet("RACEVIEW_DEBUG");
-    // auto-copy обязателен: zero-copy hwaccel (nvdec/vaapi) не отдаёт кадры
-    // в OpenGL render-API libmpv -> вместо видео чёрный экран при звуке.
-    const QByteArray hwdec =
-        qEnvironmentVariable("RACEVIEW_HWDEC", "auto-copy").toUtf8();
+    const QByteArray hwdec = defaultHwdec().toUtf8();
     const char *opts[][2] = {
         {"vo", headless ? "null" : "libmpv"},
         {"terminal", debug ? "yes" : "no"},
@@ -47,6 +69,7 @@ void MpvPlayer::observeProperties() {
     mpv_observe_property(m_handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_handle, 0, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_handle, 0, "pause", MPV_FORMAT_FLAG);
+    mpv_observe_property(m_handle, 0, "hwdec-current", MPV_FORMAT_STRING);
 }
 
 void MpvPlayer::loadFile(const QString &path) {
@@ -114,6 +137,15 @@ void MpvPlayer::drainEvents() {
             } else if (std::strcmp(p->name, "pause") == 0) {
                 if (p->format == MPV_FORMAT_FLAG && p->data)
                     m_pause = *static_cast<int *>(p->data) != 0;
+            } else if (std::strcmp(p->name, "hwdec-current") == 0) {
+                // The string belongs to the event: reading it is fine, but
+                // mpv_free() on it wrecks mpv's talloc headers (abort in
+                // ta_dbg_check_header).
+                if (p->format == MPV_FORMAT_STRING && p->data)
+                    m_hwdecCurrent =
+                        QString::fromUtf8(*static_cast<char **>(p->data));
+                else if (p->format == MPV_FORMAT_NONE)
+                    m_hwdecCurrent.clear();
             }
         }
     }
@@ -135,6 +167,17 @@ void MpvPlayer::setSpeed(double speed) {
     double v = speed;
     mpv_set_property_async(m_handle, 0, "speed", MPV_FORMAT_DOUBLE, &v);
 }
+
+void MpvPlayer::setHwdec(const QString &api) {
+    if (!m_handle)
+        return;
+    m_hwdecCurrent.clear(); // the real value arrives via the property observer
+    QByteArray value = api.toUtf8();
+    const char *str = value.constData();
+    mpv_set_property_async(m_handle, 0, "hwdec", MPV_FORMAT_STRING, &str);
+}
+
+QString MpvPlayer::hwdecCurrent() const { return m_hwdecCurrent; }
 
 void MpvPlayer::setVolume(double volume) {
     if (!m_handle)

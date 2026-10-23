@@ -134,6 +134,38 @@ ControlPanel::ControlPanel(SyncController *sync, QWidget *parent)
     aboutRow->addWidget(aboutBtn);
     aboutRow->addStretch();
 
+    aboutRow->addWidget(new QLabel(tr("Decoder")));
+    m_hwdecCombo = new QComboBox;
+    // "" = built-in copy-only list (see MpvPlayer::defaultHwdec).
+    m_hwdecCombo->addItem(tr("Auto (recommended)"), QString());
+    m_hwdecCombo->addItem(QStringLiteral("VA-API"), QStringLiteral("vaapi-copy"));
+    m_hwdecCombo->addItem(QStringLiteral("VDPAU"), QStringLiteral("vdpau-copy"));
+    m_hwdecCombo->addItem(QStringLiteral("NVDEC"), QStringLiteral("nvdec-copy"));
+    m_hwdecCombo->addItem(QStringLiteral("CUDA"), QStringLiteral("cuda-copy"));
+    m_hwdecCombo->addItem(QStringLiteral("Vulkan"), QStringLiteral("vulkan-copy"));
+#if defined(Q_OS_WIN)
+    m_hwdecCombo->addItem(QStringLiteral("D3D11VA"),
+                          QStringLiteral("d3d11va-copy"));
+    m_hwdecCombo->addItem(QStringLiteral("DXVA2"), QStringLiteral("dxva2-copy"));
+#endif
+    m_hwdecCombo->addItem(tr("mpv auto"), QStringLiteral("auto-copy"));
+    m_hwdecCombo->addItem(tr("Software"), QStringLiteral("no"));
+    m_hwdecCombo->setToolTip(tr("Video decoder"));
+    {
+        QSettings st(QStringLiteral("raceview"), QStringLiteral("raceview"));
+        const QString saved = st.value(QStringLiteral("hwdec")).toString();
+        const int idx = m_hwdecCombo->findData(saved);
+        m_hwdecCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    connect(m_hwdecCombo, &QComboBox::activated, this, [this](int) {
+        const QString api = m_hwdecCombo->currentData().toString();
+        QSettings st(QStringLiteral("raceview"), QStringLiteral("raceview"));
+        st.setValue(QStringLiteral("hwdec"), api);
+        // "" means the built-in default; defaultHwdec() now reads it back.
+        m_sync->setHwdec(api.isEmpty() ? MpvPlayer::defaultHwdec() : api);
+    });
+    aboutRow->addWidget(m_hwdecCombo);
+
     aboutRow->addWidget(new QLabel(tr("Language")));
     m_langCombo = new QComboBox;
     m_langCombo->addItem(QStringLiteral("English"), QStringLiteral("en"));
@@ -308,8 +340,8 @@ void ControlPanel::startOrStop() {
         return;
     }
 
-    // mpv с vo=libmpv требует render context ДО loadfile, иначе видеовывод
-    // не поднимается ("Video: no video"). Сначала окна+GL, потом загрузка.
+    // mpv with vo=libmpv needs the render context BEFORE loadfile, otherwise
+    // the video output never comes up ("Video: no video"): windows+GL first, then load.
     ensureWindows(n);
     for (int i = 0; i < n; ++i) {
         if (!paths[i].isEmpty()) {
@@ -378,6 +410,11 @@ void ControlPanel::setStartedUi(bool started) {
 void ControlPanel::onWindowClosed() {
     if (m_quitting)
         return;
+    // The master track defines the session: closing its window closes all.
+    if (!m_windows.isEmpty() && sender() == m_windows.first()) {
+        quitApp();
+        return;
+    }
     for (PlayerWindow *w : m_windows)
         if (w->isVisible())
             return;
@@ -460,10 +497,16 @@ void ControlPanel::updateUi() {
             m_seek->setValue(int(t * 1000));
     }
     m_timeLabel->setText(fmtTime(t) + " / " + fmtTime(d));
-    m_playBtn->setIcon(
-        icons::svg(m_sync->isPlaying() ? icons::pause() : icons::play(), 20));
+    m_playBtn->setIcon(icons::svg(m_sync->isPlayingIntent() ? icons::pause()
+                                                            : icons::play(),
+                                  20));
     m_speed->blockSignals(true);
     m_speed->setValue(speedToSlider(m_sync->speed()));
     m_speed->blockSignals(false);
     m_speedLabel->setText(QString::number(m_sync->speed(), 'f', 2) + "x");
+    const QString used = m_sync->hwdecCurrent();
+    const QString tip = used.isEmpty() ? tr("Video decoder")
+                                       : tr("Active decoder: %1").arg(used);
+    if (m_hwdecCombo->toolTip() != tip)
+        m_hwdecCombo->setToolTip(tip);
 }
